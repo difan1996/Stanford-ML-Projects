@@ -137,7 +137,7 @@ tmp3 %>%
               linetype = 1, color = 'darkblue') +
   stat_cor(aes(label = ..r.label..)) +
   labs(x = 'GDP', y = 'coef') +
-  facet_wrap(~ label, nrow = 3, scales = 'free')
+  facet_wrap(~ variable, nrow = 3, scales = 'free')
 
 tmp4 %>% 
   select(ZlnCHINAGDP, 8:16) %>% 
@@ -149,7 +149,7 @@ tmp4 %>%
               linetype = 1, color = 'darkblue') +
   stat_cor(aes(label = ..r.label..)) +
   labs(x = 'GDP', y = 'coef') +
-  facet_wrap(~ label, nrow = 3, scales = 'free')
+  facet_wrap(~ variable, nrow = 3, scales = 'free')
 
 # 4. Plotting in the same graph
 tmp5 <- left_join(tmp1, tmp2, by = 'CNTRYID')
@@ -344,28 +344,36 @@ n_tmp3 <- names(tmp3)[-(1:7)]
 tmp4 <- tmp2 %>% select(-n_tmp3)
 
 tmp3 %>% 
-  select(HDI, 8:18) %>% 
+  select(HDI, 44:52) %>% 
   gather('variable', 'value', -HDI) %>% 
   left_join(correlations, by = 'variable') %>%
+  mutate(label = str_wrap(label, width = 30)) %>% 
+  unite('variable', variable, label, sep = '\n') %>% 
   ggplot(aes(HDI, value, na.rm = T)) +
   geom_point(alpha = 0.3, color = 'blue') +
   geom_smooth(method = 'lm', se = FALSE, size = 0.5, 
               linetype = 1, color = 'darkblue') +
   stat_cor(aes(label = ..r.label..)) +
   labs(x = 'HDI', y = 'coef') +
-  facet_wrap(~ label, nrow = 3, scales = 'free')
+  facet_wrap(~ variable, nrow = 3, scales = 'free') +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 3))
 
 tmp4 %>% 
-  select(HDI, 8:16) %>% 
+  select(HDI, 44:52) %>% 
   gather('variable', 'value', -HDI) %>% 
   left_join(correlations, by = 'variable') %>%
+  mutate(label = str_wrap(label, width = 30)) %>% 
+  unite('variable', variable, label, sep = '\n') %>% 
   ggplot(aes(HDI, value, na.rm = T)) +
   geom_point(alpha = 0.3, color = 'blue') +
   geom_smooth(method = 'lm', se = FALSE, size = 0.5, 
               linetype = 1, color = 'darkblue') +
   stat_cor(aes(label = ..r.label..)) +
   labs(x = 'HDI', y = 'coef') +
-  facet_wrap(~ label, nrow = 3, scales = 'free')
+  facet_wrap(~ variable, nrow = 3, scales = 'free') +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 3))
 
 # 4. Plotting in the same graph
 tmp5 <- left_join(tmp1, tmp2, by = 'CNTRYID')
