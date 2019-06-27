@@ -24,18 +24,18 @@ x <- USA %>%
 # Dealing with some variables
 # Function to calculate proportion of NA's
 prop_NA <-  function(x) {sum(is.na(x))/length(x)}
-x$NA_prop <- apply(x_train, 1, prop_NA)
+x$NA_prop <- apply(x, 1, prop_NA)
 
 # UH form
 x$UH <- as.numeric(USA$CBASCI == 5)
 
 # Country-specific wealth item, 1-Yes 2-No
-x$ST011D17TA[str_ends(x_train$ST011D17TA, '1')] <- 1
-x$ST011D17TA[str_ends(x_train$ST011D17TA, '2')] <- 2
-x$ST011D18TA[str_ends(x_train$ST011D18TA, '1')] <- 1
-x$ST011D18TA[str_ends(x_train$ST011D18TA, '2')] <- 2
-x$ST011D19TA[str_ends(x_train$ST011D19TA, '1')] <- 1
-x$ST011D19TA[str_ends(x_train$ST011D19TA, '2')] <- 2
+x$ST011D17TA[str_ends(x$ST011D17TA, '1')] <- 1
+x$ST011D17TA[str_ends(x$ST011D17TA, '2')] <- 2
+x$ST011D18TA[str_ends(x$ST011D18TA, '1')] <- 1
+x$ST011D18TA[str_ends(x$ST011D18TA, '2')] <- 2
+x$ST011D19TA[str_ends(x$ST011D19TA, '1')] <- 1
+x$ST011D19TA[str_ends(x$ST011D19TA, '2')] <- 2
 
 # First digit of occupation indicates category
 x$occupation_m <- str_extract(USA$OCOD1, '^.{1}')
@@ -73,7 +73,7 @@ x_train[names_categorical] <-
   as.data.frame(lapply(x_train[names_categorical], function(x) factor(x)))
 
 # Impute missing values with using k-nearest neighbor
-knnImpute <- preProcess(x_train, method = c('center', 'scale', 'knnImpute'))
+knnImpute <- preProcess(x_train, method = 'knnImpute')
 x_train <- predict(knnImpute, x_train)
 
 x_train <- as.data.frame(model.matrix(~., x_train))

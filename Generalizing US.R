@@ -71,7 +71,7 @@ x_train[names_categorical] <-
   as.data.frame(lapply(x_train[names_categorical], function(x) factor(x)))
 
 # Impute missing values with using k-nearest neighbor
-knnImpute <- preProcess(x_train, method = c('center', 'scale', 'knnImpute'))
+knnImpute <- preProcess(x_train, method = 'knnImpute')
 x_train <- predict(knnImpute, x_train)
 
 x_train <- as.data.frame(model.matrix(~., x_train))
