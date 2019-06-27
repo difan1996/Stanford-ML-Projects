@@ -81,7 +81,6 @@ for (i in 1:l) {
   medianImpute <- preProcess(x_train, method = c('center', 'scale', 'medianImpute'))
   x_train <- predict(medianImpute, x_train)
   
-  options(na.action = 'na.pass')
   x_train <- as.data.frame(model.matrix(~., x_train))
   x_train <- x_train[-nrow(x_train),]
   

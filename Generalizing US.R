@@ -71,10 +71,9 @@ x_train[names_categorical] <-
   as.data.frame(lapply(x_train[names_categorical], function(x) factor(x)))
 
 # Impute missing values with using k-nearest neighbor
-medianImpute <- preProcess(x_train, method = c('center', 'scale', 'medianImpute'))
-x_train <- predict(medianImpute, x_train)
+knnImpute <- preProcess(x_train, method = c('center', 'scale', 'knnImpute'))
+x_train <- predict(knnImpute, x_train)
 
-options(na.action = 'na.pass')  # Allow model.matrix to keep rows with missing values
 x_train <- as.data.frame(model.matrix(~., x_train))
 
 # Remove highly correlated variables
@@ -139,7 +138,7 @@ for (i in 1:l) {
   x_test[names_categorical] <- 
     as.data.frame(lapply(x_test[names_categorical], function(x) factor(x)))
   
-  x_test <- predict(medianImpute, x_test)
+  x_test <- predict(knnImpute, x_test)
   x_test <- as.data.frame(model.matrix(~., x_test))
   x_test <- x_test[-nrow(x_test),]  # Remove added row
   
