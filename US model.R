@@ -3,11 +3,8 @@
 # the model is tested on the remaining 20% of US data
 ############################################################################
 library(caret)
-library(doMC)
 library(glmnet)
 library(tidyverse)
-
-registerDoMC(cores = 8)
 
 # Reading US data
 load('names.RData')

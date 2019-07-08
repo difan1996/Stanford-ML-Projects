@@ -83,7 +83,7 @@ tmp2 %>%
 tmp2 <- tmp2[sapply(tmp2, function(x) {sum(!is.na(x)) >= 30})]
 
 correlations <- as_tibble(
-  cor(tmp2[-(1:7)], tmp2$ZlnCHINAGDP, use = 'pairwise.complete.obs'),
+  cor(tmp2[-(1:9)], tmp2$ZlnCHINAGDP, use = 'pairwise.complete.obs'),
   rownames = 'variable') 
 
 correlations$label <- NA
@@ -118,7 +118,7 @@ names(filtered) <- c('variable', 'label', 'Correlation with GDP',
 write_csv(filtered, 'output/correlations.csv')
 
 # 3. Plotting most important features
-US_coef <- tmp2[51, -(1:7)]
+US_coef <- tmp2[51, -(1:9)]
 ordered_names <- names(US_coef)[order(-abs(as.matrix(US_coef)))]
 tmp2 <- tmp2 %>% 
   select(CNTRYID:`(Intercept)`, ordered_names)
@@ -126,7 +126,7 @@ tmp2 <- tmp2 %>%
 tmp3 <- tmp2 %>% 
   select(CNTRYID:`(Intercept)`, matches('\\d$'), -BMMJ1, -BFMJ2)
 
-n_tmp3 <- names(tmp3)[-(1:7)]
+n_tmp3 <- names(tmp3)[-(1:9)]
 tmp4 <- tmp2 %>% select(-n_tmp3)
 
 tmp3 %>% 
@@ -236,14 +236,14 @@ tmp5 %>%
 # HDI
 tmp1 <- US_model %>% 
   filter(!is.na(HDI)) %>% 
-  filter(indicator == 0) %>%
+  # filter(indicator == 0) %>%
   arrange(HDI) %>% 
   mutate(RMSE = RMSE/median_RMSE, MAE = MAE/median_MAE)
 tmp1$indicator <- NULL
 
 tmp2 <- Global_model %>% 
   filter(!is.na(HDI)) %>% 
-  filter(indicator == 0) %>%
+  # filter(indicator == 0) %>%
   arrange(HDI) %>% 
   mutate(RMSE = RMSE/median_RMSE, MAE = MAE/median_MAE)
 tmp2$indicator <- NULL
@@ -358,7 +358,7 @@ n_tmp3 <- names(tmp3)[-(1:9)]
 tmp4 <- tmp2 %>% select(-n_tmp3)
 
 tmp3 %>% 
-  select(HDI, sort(filtered$variable)[c(70:73, 111:115)]) %>% 
+  select(HDI, 22:33) %>% 
   gather('variable', 'value', -HDI) %>% 
   left_join(correlations, by = 'variable') %>%
   mutate(label = str_wrap(label, width = 30)) %>% 
@@ -369,12 +369,12 @@ tmp3 %>%
               linetype = 1, color = 'darkblue') +
   stat_cor(aes(label = ..r.label..)) +
   labs(x = 'HDI', y = 'coef') +
-  facet_wrap(~ variable, nrow = 3, scales = 'free') +
+  facet_wrap(~ variable, nrow = 4, scales = 'free') +
   scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 3))
 
 tmp4 %>% 
-  select(HDI, sort(filtered$variable)[c(127:128)]) %>% 
+  select(HDI, 10:21) %>% 
   gather('variable', 'value', -HDI) %>% 
   left_join(correlations, by = 'variable') %>%
   mutate(label = str_wrap(label, width = 30)) %>% 
@@ -472,7 +472,7 @@ tmp5 %>%
   geom_point() +
   geom_smooth(method = 'lm', se = F) +
   stat_cor(aes(label = ..r.label..), show.legend = F) +
-  # annotate(geom = 'text', x = 0.7, y = 0.63, label = 'p = 0.1211') +
+  annotate(geom = 'text', x = 0.743, y = 0.65, label = 'p = 0.0574') +
   labs(x = 'HDI', y = TeX('$R^2$')) +
   scale_colour_discrete(name = '',
                         breaks = c('r2.x', 'r2.y'),

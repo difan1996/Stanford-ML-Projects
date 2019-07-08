@@ -4,12 +4,9 @@
 # country/region
 ############################################################################
 library(caret)
-library(doMC)
 library(glmnet)
 library(haven)
 library(tidyverse)
-
-registerDoMC(cores = 8)
 
 # Read in the complete data
 Part1 <- read_sas('data/cy6_ms_cmb_stu_qqq.sas7bdat')

@@ -1,6 +1,7 @@
+library(haven)
 library(tidyverse)
 
-part1 <- read_sas('data/cy6_ms_cmb_stu_qqq.sas7bdat')
+Part1 <- read_sas('data/cy6_ms_cmb_stu_qqq.sas7bdat')
 Part2 <- read_sas('data/cy6_ms_cmb_stu_qq2.sas7bdat')
 Full_data <- left_join(Part1, Part2, by = 'CNTSTUID', suffix = c('', '.y'))
 
@@ -36,7 +37,8 @@ ggplot(as_tibble(cbind(x, y = sapply(x, tmp))), aes(x, y)) +
   labs(x = 'Number of countries', y = '', 
        title = 'Maximum number of common features') +
   theme_bw() +
-  theme(axis.line = element_line(colour = "black"),
+  theme(plot.title = element_text(hjust = 0.4),
+        axis.line = element_line(colour = "black"),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
