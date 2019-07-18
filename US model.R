@@ -14,8 +14,7 @@ y <- USA$PV1SCIE
 w <- USA$W_FSTUWT
 x <- USA %>% select(names_selected)
 
-prop_NA <- function(x) {mean(is.na(x))}
-x$NA_prop <- apply(x, 1, prop_NA)
+x$NA_prop <- rowMeans(is.na(x))
 
 x$ST011D17TA[str_ends(x$ST011D17TA, '1')] <- 1
 x$ST011D17TA[str_ends(x$ST011D17TA, '2')] <- 2
@@ -23,6 +22,8 @@ x$ST011D18TA[str_ends(x$ST011D18TA, '1')] <- 1
 x$ST011D18TA[str_ends(x$ST011D18TA, '2')] <- 2
 x$ST011D19TA[str_ends(x$ST011D19TA, '1')] <- 1
 x$ST011D19TA[str_ends(x$ST011D19TA, '2')] <- 2
+
+x$ST021Q01TA[is.na(x$ST021Q01TA)] <- 0
 
 x$ST095Q04NA[x$ST095Q04NA == 5] <- 0
 x$ST095Q07NA[x$ST095Q07NA == 5] <- 0
@@ -45,29 +46,29 @@ y_test <- y[-train_index]
 w_train <- w[train_index]
 w_test <- w[-train_index]
 
+x_train <- x_train %>% add_row(); x_train[nrow(x_train),] <- -100  # Extra row to avoid errors in dummyVars
 x_train[names_categorical] <- 
   as.data.frame(lapply(x_train[names_categorical], function(x) factor(x)))
-
-nzv <- nearZeroVar(x_train)
-if (length(nzv)) x_train <- x_train[-nzv]
 
 knnImpute <- preProcess(x_train, method = 'knnImpute')
 x_train <- predict(knnImpute, x_train)
 
 dummy <- dummyVars(~ ., x_train)
 x_train <- as.data.frame(predict(dummy, x_train))
+x_train <- x_train[-nrow(x_train),]  # remove the extra row
 
-# corr <- preProcess(x_train, method = c('zv', 'corr'), cutoff = 0.90)
-# x_train <- predict(corr, x_train)
+zv <- preProcess(x_train, method = c('zv'))
+x_train <- predict(zv, x_train)
 
+x_test <- x_test %>% add_row(); x_test[nrow(x_test),] <- -100
 x_test[names_categorical] <- 
   as.data.frame(lapply(x_test[names_categorical], function(x) factor(x)))
-if (length(nzv)) x_test <- x_test[-nzv]
 
 x_test <- predict(knnImpute, x_test)
 
 dummy_test <- dummyVars(~ ., x_test)
 x_test <- as.data.frame(predict(dummy_test, x_test))
+x_test <- x_test[-nrow(x_test),]  # remove the extra row
 
 names_xtrain <- names(x_train)
 train_minus_test <- setdiff(names_xtrain, names(x_test))
@@ -83,7 +84,8 @@ predicted <- predict(ridge, as.matrix(x_test), s = 'lambda.min')
 metrics <- c(RMSE(predicted, y_test), MAE(predicted, y_test), 
              cor(predicted, y_test, method = 'pearson')[1],
              cor(predicted, y_test, method = 'kendall')[1],
-             original_sd <- sd(y_test), origninal_mad <- mad(y_test))
+             RMSE(rep(median(y_test), length(y_test)), y_test),
+             MAE(rep(median(y_test), length(y_test)), y_test))
              
-save(nzv, knnImpute, names_xtrain, ridge, metrics, file = 'ridge_US.RData')
+save(knnImpute, names_xtrain, ridge, metrics, file = 'ridge_US.RData')
 

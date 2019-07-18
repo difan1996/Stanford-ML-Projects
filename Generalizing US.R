@@ -12,7 +12,6 @@ Part2 <- read_sas('data/cy6_ms_cmb_stu_qq2.sas7bdat')
 Full_data <- left_join(Part1, Part2, by = 'CNTSTUID', suffix = c('', '.y'))
 load('names.RData')
 
-prop_NA <- function(x) {mean(is.na(x))}
 ############################################################################
 # Training was completed in "US model.R"
 load('ridge_US.RData')
@@ -20,23 +19,23 @@ load('ridge_US.RData')
 ############################################################################
 # Testing
 # Prepare a Tibble to store the test metrics
-list_of_id <- unique(Full_data$CNTRYID)
-l <- length(list_of_id)
-results <- tibble(id = list_of_id, RMSE = numeric(l), MAE = numeric(l),
+l <- length(countries_selected)
+results <- tibble(id = countries_selected, 
+                  RMSE = numeric(l), MAE = numeric(l),
                   corr = numeric(l), kendall = numeric(l),
                   median_RMSE = numeric(l), median_MAE = numeric(l))
 
 # Loop through all the countries/regions
 for (i in 1:l) {
   NEW <- Full_data %>%
-    filter(CNTRYID == list_of_id[i])
-  NEW[NEW == ''] <-  NA
+    filter(CNTRYID == countries_selected[i])
+  # NEW[NEW == ''] <-  NA
   
   y <- NEW$PV1SCIE
   w <- NEW$W_FSTUWT
   x <- NEW %>% select(names_selected)
   
-  x$NA_prop <- apply(x, 1, prop_NA)
+  x$NA_prop <- rowMeans(is.na(x))
   
   x$ST011D17TA[str_ends(x$ST011D17TA, '1')] <- 1
   x$ST011D17TA[str_ends(x$ST011D17TA, '2')] <- 2
@@ -44,6 +43,8 @@ for (i in 1:l) {
   x$ST011D18TA[str_ends(x$ST011D18TA, '2')] <- 2
   x$ST011D19TA[str_ends(x$ST011D19TA, '1')] <- 1
   x$ST011D19TA[str_ends(x$ST011D19TA, '2')] <- 2
+  
+  x$ST021Q01TA[is.na(x$ST021Q01TA)] <- 0
   
   x$ST095Q04NA[x$ST095Q04NA == 5] <- 0
   x$ST095Q07NA[x$ST095Q07NA == 5] <- 0
@@ -60,7 +61,6 @@ for (i in 1:l) {
   x <- x %>% add_row(); x[nrow(x),] <- -100  # Extra row to avoid errors in dummyVars
   x[names_categorical] <- 
     as.data.frame(lapply(x[names_categorical], function(x) factor(x)))
-  if (length(nzv)) x <- x[-nzv]
   
   x <- predict(knnImpute, x)
   
@@ -82,10 +82,9 @@ for (i in 1:l) {
   results[i, 7] <- MAE(rep(median(y), length(y)), y)
 }
 
-results[70, -1] <- metrics
+results[which(countries_selected == 840), -1] <- metrics
 
-country_data <- read_csv('data/Country-level Analysis Passion and Science Mar 30 AL EDT.csv') %>%
-  select(CNTRYID, ZlnCHINAGDP, HDI) %>%
-  left_join(results, by = c('CNTRYID' = 'id'))
+country_data <- read_csv('data/HDI.csv') %>%
+  right_join(results, by = c('CNTRYID' = 'id'))
 
 write_csv(country_data, 'output/results_US.csv')

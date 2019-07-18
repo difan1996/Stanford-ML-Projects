@@ -14,27 +14,26 @@ Part2 <- read_sas('data/cy6_ms_cmb_stu_qq2.sas7bdat')
 Full_data <- left_join(Part1, Part2, by = 'CNTSTUID', suffix = c('', '.y'))
 load('names.RData')
 
-prop_NA <- function(x) {mean(is.na(x))}
 ############################################################################
 # Tibble to store the test metrics
-list_of_id <- unique(Full_data$CNTRYID)
-l <- length(list_of_id)
-results <- tibble(id = list_of_id, RMSE = numeric(l), MAE = numeric(l), 
+l <- length(countries_selected)
+results <- tibble(id = countries_selected, 
+                  RMSE = numeric(l), MAE = numeric(l),
                   corr = numeric(l), kendall = numeric(l),
                   median_RMSE = numeric(l), median_MAE = numeric(l))
 # Tibble to store the coefficients
-coef <- tibble(id = list_of_id)
+coef <- tibble(id = countries_selected)
 
 for (i in 1:l) {
   NEW <- Full_data %>%
-    filter(CNTRYID == list_of_id[i])
-  NEW[NEW == ''] <-  NA
+    filter(CNTRYID == countries_selected[i])
+  # NEW[NEW == ''] <-  NA
   
   y <- NEW$PV1SCIE
   w <- NEW$W_FSTUWT
   x <- NEW %>% select(names_selected)
   
-  x$NA_prop <- apply(x, 1, prop_NA)
+  x$NA_prop <- rowMeans(is.na(x))
   
   x$ST011D17TA[str_ends(x$ST011D17TA, '1')] <- 1
   x$ST011D17TA[str_ends(x$ST011D17TA, '2')] <- 2
@@ -42,6 +41,8 @@ for (i in 1:l) {
   x$ST011D18TA[str_ends(x$ST011D18TA, '2')] <- 2
   x$ST011D19TA[str_ends(x$ST011D19TA, '1')] <- 1
   x$ST011D19TA[str_ends(x$ST011D19TA, '2')] <- 2
+  
+  x$ST021Q01TA[is.na(x$ST021Q01TA)] <- 0
   
   x$ST095Q04NA[x$ST095Q04NA == 5] <- 0
   x$ST095Q07NA[x$ST095Q07NA == 5] <- 0
@@ -64,33 +65,34 @@ for (i in 1:l) {
   w_train <- w[train_index]
   w_test <- w[-train_index]
   
+  x_train <- x_train %>% add_row(); x_train[nrow(x_train),] <- -100 
   x_train[names_categorical] <- 
     as.data.frame(lapply(x_train[names_categorical], function(x) factor(x)))
   
-  nzv <- nearZeroVar(x_train)
-  if (length(nzv)) x_train <- x_train[-nzv]
-  
-  medianImpute <- preProcess(x_train, method = c('center', 'scale', 'medianImpute'))
-  x_train <- predict(medianImpute, x_train)
+  knnImpute <- preProcess(x_train, method = 'knnImpute')
+  x_train <- predict(knnImpute, x_train)
   
   dummy <- dummyVars(~ ., x_train)
   x_train <- as.data.frame(predict(dummy, x_train))
+  x_train <- x_train[-nrow(x_train),] 
   
-  # corr <- preProcess(x_train, method = c('zv', 'corr'), cutoff = 0.90)
-  # x_train <- predict(corr, x_train)
+  zv <- preProcess(x_train, method = c('zv'))
+  x_train <- predict(zv, x_train)
   
+  x_test <- x_test %>% add_row(); x_test[nrow(x_test),] <- -100
   x_test[names_categorical] <- 
     as.data.frame(lapply(x_test[names_categorical], function(x) factor(x)))
-  if (length(nzv)) x_test <- x_test[-nzv]
   
-  x_test <- predict(medianImpute, x_test)
+  x_test <- predict(knnImpute, x_test)
   
   dummy_test <- dummyVars(~ ., x_test)
   x_test <- as.data.frame(predict(dummy_test, x_test))
+  x_test <- x_test[-nrow(x_test),]  
   
-  train_minus_test <- setdiff(names(x_train), names(x_test))
+  names_xtrain <- names(x_train)
+  train_minus_test <- setdiff(names_xtrain, names(x_test))
   if (length(train_minus_test)) x_test[train_minus_test] <- 0
-  x_test <- select(x_test, names(x_train))
+  x_test <- select(x_test, names_xtrain)
   
   set.seed(111)
   ridge <- cv.glmnet(as.matrix(x_train), y_train,
@@ -101,7 +103,7 @@ for (i in 1:l) {
   results[i, 2] <- RMSE(predicted, y_test)
   results[i, 3] <- MAE(predicted, y_test)
   results[i, 4] <- cor(predicted, y_test, method = 'pearson')[1]
-  results[i, 4] <- cor(predicted, y_test, method = 'kendall')[1]
+  results[i, 5] <- cor(predicted, y_test, method = 'kendall')[1]
   results[i, 6] <- RMSE(rep(median(y_test), length(y_test)), y_test)
   results[i, 7] <- MAE(rep(median(y_test), length(y_test)), y_test)
   
@@ -111,9 +113,15 @@ for (i in 1:l) {
     matrix(coef.cv.glmnet(ridge, s = 'lambda.min'))[, 1]
 }
 
-country_data <- read_csv('data/Country-level Analysis Passion and Science Mar 30 AL EDT.csv') %>%
-  select(CNTRYID, ZlnCHINAGDP, HDI) %>%
-  left_join(results, by = c('CNTRYID' = 'id')) %>%
+country_data <- read_csv('data/HDI.csv') %>%
+  right_join(results, by = c('CNTRYID' = 'id')) %>%
   left_join(coef, by = c('CNTRYID' = 'id'))
 
 write_csv(country_data, 'output/results_separate.csv')
+
+# country_data <- read_csv('output/results_separate.csv')
+# GDP <- read_csv('data/Country-level Analysis Passion and Science Mar 30 AL EDT.csv') %>% 
+#   select(CNTRYID, ZlnCHINAGDP)
+# country_data <- left_join(country_data, GDP, by = 'CNTRYID') %>% 
+#   select(1:2, 354, 3:353)
+# write_csv(country_data, 'output/results_separate.csv')

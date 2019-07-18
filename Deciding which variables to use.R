@@ -4,6 +4,7 @@ library(tidyverse)
 Part1 <- read_sas('data/cy6_ms_cmb_stu_qqq.sas7bdat')
 Part2 <- read_sas('data/cy6_ms_cmb_stu_qq2.sas7bdat')
 Full_data <- left_join(Part1, Part2, by = 'CNTSTUID', suffix = c('', '.y'))
+Full_data[Full_data == ''] <- NA
 
 # 26:249, 933:941: ST questionnare responses
 # 641:726: Derived variables from the ST questionnare
@@ -11,31 +12,39 @@ names <- names(Full_data)[c(26:249, 641:726, 933:941)]
 list_of_id <- unique(Full_data$CNTRYID)
 l <- length(list_of_id)
 
-# matrix to store the appearance of variables, initialized with 1
-variables <- matrix(1, nrow = l, ncol = length(names))
+# matrix to store the appearance of variables
+variables <- matrix(nrow = l, ncol = length(names))
 for (i in 1:l) {
   NEW <- Full_data %>%
     filter(CNTRYID == list_of_id[i]) %>% 
     select(names)
-  NEW[NEW == ''] <-  NA
   
-  nzv <- nearZeroVar(NEW)  # index of variables with near-zero variance
-  variables[i, nzv] <- 0  # change corresponding matrix values to zero
+  NA_index <- colMeans(is.na(NEW)) != 1  # index of variables with all NA's
+  variables[i, ] <- NA_index  # change corresponding matrix values
 }
 variables <- as_tibble(variables)
 names(variables) <- names
-count <- apply(variables, 2, sum)
 
-# Visualizing the relationship between number of countries and maximum
-# number of common features
-tmp <- function(x) {sum(count >= x)}
-x <- 1:l
-ggplot(as_tibble(cbind(x, y = sapply(x, tmp))), aes(x, y)) +
+HDI <- read_csv('data/HDI.csv')
+
+tmp <- variables %>% 
+  add_column(CNTRYID = list_of_id) %>% 
+  left_join(HDI, by = 'CNTRYID') 
+tmp$count <- rowSums(tmp[1:319])
+tmp <- tmp %>% 
+  filter(!is.na(HDI)) %>% 
+  arrange(-count)
+
+v <- c()
+for (i in 1:nrow(tmp)) {
+  v[i] <- sum(colSums(tmp[1:i, 1:319]) == i)
+}
+
+ggplot(as_tibble(cbind(x = 1:65, v)), aes(x, v)) +
   geom_line() +
-  geom_vline(xintercept = 57, linetype = 2) +
-  annotate(geom = 'text', x = 63, y = 240, label = '(57, 235)') +
-  labs(x = 'Number of countries', y = '', 
-       title = 'Maximum number of common features') +
+  geom_vline(xintercept = 53, linetype = 2) +
+  annotate(geom = 'text', x = 58, y = 212, label = '(53, 208)') +
+  labs(x = 'Number of countries', y = 'Number of common features') +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.4),
         axis.line = element_line(colour = "black"),
@@ -44,12 +53,17 @@ ggplot(as_tibble(cbind(x, y = sapply(x, tmp))), aes(x, y)) +
         panel.border = element_blank(),
         panel.background = element_blank()) 
 
-names_selected <- names(count[count >= 57])
-names_selected <- names_selected[-191]  # remove PROGN, which is not consistently coded
+labels <- read_csv('data/labels.csv')
+names_selected <- tibble(name = names[colSums(tmp[1:53, 1:319]) == 53]) %>% 
+  left_join(labels, by = c('name' = 'NAME'))
+write_csv(names_selected, 'names_selected.csv')
+
+countries_selected <- tmp$CNTRYID[1:53]
+names_selected <- names_selected$name[-c(164, 197:200)]  # remove inconsistent variables
 
 # By direct inspection, decide which variables should be categorical
-cat_index <- c(1:3, 5:6, 8:29, 35:36, 78:87, 170:189, 226:228)
+cat_index <- c(1:2, 4:5, 7:23, 32:34, 36, 141:162, 164:166, 179, 196:198)
 (names_categorical <- names_selected[cat_index])
 (names_numerical <- names_selected[-cat_index])
 
-save(names_selected, names_categorical, names_numerical, file = 'names.RData')
+save(countries_selected, names_selected, names_categorical, names_numerical, file = 'names.RData')
